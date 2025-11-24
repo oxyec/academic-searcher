@@ -13,10 +13,12 @@ Internet connection
 Clone or Download this repository.
 Install dependencies using pip:
 # pip install requirements.txt
+
 ⚙️ Configuration (API Keys)
 This tool uses a .env file to manage API keys securely.
 Create a file named .env in the same folder as your script.
 Copy the following format into the file:
+
 # .env file
 
 # --- Required for Politeness ---
