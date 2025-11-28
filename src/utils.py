@@ -15,34 +15,27 @@ def clean_text(text):
     # Remove double spaces
     return " ".join(text.split())
 
-def safe_get(url, params=None, headers=None, timeout=20, retries=1):
+def safe_get(url, params=None, headers=None, timeout=20):
     if headers is None: headers = {}
     if 'User-Agent' not in headers:
         headers['User-Agent'] = f"AcademicSearchBot/1.0 (mailto:{UNPAYWALL_EMAIL})"
 
-    for attempt in range(retries + 1):
-        try:
-            r = requests.get(url, params=params, headers=headers, timeout=timeout)
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=timeout)
 
-            if r.status_code == 403 and "semanticscholar" in url:
-                print("   [!] Semantic Scholar Error: API Key required or Invalid.")
-                return None
-
-            elif r.status_code == 429:
-                if attempt < retries:
-                    print(f"   [!] Too many requests. Cooling down... {url} (Attempt {attempt+1})")
-                    time.sleep(5)
-                    continue # Retry
-                else:
-                    print(f"   [!] Too many requests. Giving up on {url}")
-                    return None
-
-            if r.status_code != 200:
-                return None
-            return r
-        except Exception:
+        if r.status_code == 403 and "semanticscholar" in url:
+            print("   [!] Semantic Scholar Error: API Key required or Invalid.")
             return None
-    return None
+        elif r.status_code == 429:
+            print(f"   [!] Too many requests. Cooling down... {url}")
+            time.sleep(5)
+            return None
+
+        if r.status_code != 200:
+            return None
+        return r
+    except Exception:
+        return None
 
 def format_authors(authors_data):
     if not authors_data: return ""

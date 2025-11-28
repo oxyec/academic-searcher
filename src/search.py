@@ -29,6 +29,7 @@ def search_crossref(query, rows):
         return r.json().get("message", {}).get("items", [])
     except:
         return []
+    return r.json().get("message", {}).get("items", [])
 
 def process_crossref(query, rows):
     print(f"   [Starting] CrossRef search for '{query}'...")
@@ -73,6 +74,7 @@ def search_semanticscholar(query, limit):
         return r.json().get("data", [])
     except:
         return []
+    return r.json().get("data", [])
 
 def process_semanticscholar(query, limit):
     print(f"   [Starting] Semantic Scholar search for '{query}'...")
@@ -114,6 +116,7 @@ def search_google(query, key, cse, num):
         return r.json().get("items", [])
     except:
         return []
+    return r.json().get("items", [])
 
 def process_google(query, limit, key, cse):
     if not key or not cse:
