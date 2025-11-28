@@ -1,3 +1,5 @@
+from src.config import OUTPUT_CSV
+from src.core import search_all_sources
 import concurrent.futures
 from src.config import OUTPUT_CSV, GOOGLE_API_KEY, CSE_ID
 from src.search import process_crossref, process_semanticscholar, process_google
@@ -33,6 +35,10 @@ def main():
 
         print(f"\n🔎 Searching for '{query}'...")
 
+        # Use the core logic
+        all_results = search_all_sources(query, results_limit)
+
+        # Save results
         # Using ThreadPoolExecutor for parallel execution
         # We have 3 sources: CrossRef, Semantic Scholar, Google
         all_results = []
