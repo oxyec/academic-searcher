@@ -1,14 +1,18 @@
 # 📚 Academic Research Assistant
 
-A Python-based command-line tool that automates the process of searching for academic papers. It queries multiple databases simultaneously, checks for free (Open Access) PDFs via Unpaywall, and exports the results into a clean, Excel-ready CSV file.
+A Python-based tool that automates the process of searching for academic papers. It queries multiple databases simultaneously, checks for free (Open Access) PDFs via Unpaywall, and exports the results.
+
+Now featuring a **CLI**, a **Web App**, and a **REST API**!
 
 ## 🚀 Features
 
 *   **Multi-Source Search:** Queries **CrossRef**, **Semantic Scholar**, and **Google Custom Search** (optional).
 *   **PDF Discovery:** Automatically checks **Unpaywall** and Semantic Scholar for direct links to free PDFs.
-*   **Excel-Ready Export:** Saves data to a CSV file with proper encoding (`UTF-8-SIG`) so it opens correctly in Excel.
-*   **Data Cleaning:** Automatically cleans formatting issues in titles and author names.
-*   **Privacy Focused:** Uses environment variables to protect your API keys and contact info.
+*   **Excel-Ready Export:** Saves data to a CSV file with proper encoding (`UTF-8-SIG`).
+*   **Three Interfaces:**
+    *   **CLI:** Interactive command-line tool.
+    *   **Web App:** Modern browser-based interface powered by Streamlit.
+    *   **API:** REST API powered by FastAPI.
 
 ## 📋 Prerequisites
 
@@ -30,43 +34,46 @@ A Python-based command-line tool that automates the process of searching for aca
 
 ## ⚙️ Configuration (API Keys)
 
-This tool uses a `.env` file to manage API keys securely so they are not hardcoded in the script.
-
-1.  Create a file named `.env` in the same folder as `main.py`.
-2.  Copy and paste the following configuration into it:
+Create a `.env` file in the project root:
 
 ```ini
-# .env file configuration
-
-# --- REQUIRED: Email for Politeness ---
-# APIs like Unpaywall require an email to identify the bot.
-# This stays local on your machine.
+# .env configuration
 UNPAYWALL_EMAIL=your_email@example.com
-
-# --- OPTIONAL: Semantic Scholar (Recommended) ---
-# Works without a key, but works faster/better with one.
-# Get free key: https://www.semanticscholar.org/product/api
+# Optional
 S2_API_KEY=
-
-# --- OPTIONAL: Google Search ---
-# If left empty, the script simply skips the Google Search step.
-# 1. API Key: https://developers.google.com/custom-search/v1/overview
-# 2. CSE ID: https://programmablesearchengine.google.com/
 GOOGLE_API_KEY=
 CSE_ID=
 ```
 
-### Interaction Flow:
-1.  **Settings:** The script asks: *"How many articles per source?"* (Default is 5).
-2.  **Search:** Enter a keyword or title (e.g., `Machine Learning in Healthcare`).
-3.  **Processing:** The script queries all connected databases and checks for PDF links.
-4.  **Save:** Results are appended to a CSV file.
-5.  **Exit:** Type `q` to quit the program.
+## 🏃‍♂️ How to Run
+
+### 1. Web App (Recommended)
+The easiest way to use the tool. Opens in your browser.
+```bash
+# Option A (Standard Streamlit way)
+streamlit run app.py
+
+# Option B (Direct Python execution)
+python app.py
+```
+
+### 2. Command Line Interface (CLI)
+Classic interactive terminal mode.
+```bash
+python main.py
+```
+
+### 3. REST API
+Start the API server (available at `http://localhost:8000`).
+```bash
+python api.py
+```
+*   **Swagger Docs:** Visit `http://localhost:8000/docs` to test endpoints.
+*   **Example Query:** `http://localhost:8000/search?query=machine+learning&limit=5`
 
 ## 📂 Output Format
 
-The results are saved to a file named `research_results_YYYYMMDD_HHMMSS.csv`.
-This file opens directly in **Microsoft Excel**, **Google Sheets**, or **LibreOffice**.
+Results from the CLI and Web App are saved as `research_results_YYYYMMDD_HHMMSS.csv`.
 
 **Columns Included:**
 *   **Source:** (CrossRef, Semantic Scholar, Google)
@@ -74,21 +81,19 @@ This file opens directly in **Microsoft Excel**, **Google Sheets**, or **LibreOf
 *   **Year & Venue**
 *   **DOI:** Digital Object Identifier
 *   **Open Access Status:** `gold`, `green`, `hybrid`, or `closed`
-*   **PDF Link:** Direct clickable link to the PDF (if found)
-*   **Date Accessed:** Timestamp of the search
+*   **PDF Link:** Direct clickable link to the PDF
+*   **Date Accessed:** Timestamp
 
 ## ⚠️ API Limits
 
-*   **CrossRef:** Free. The script includes a politeness delay (`1.5s`) to prevent errors.
-*   **Semantic Scholar:** Free. Rate limits are stricter without an API key.
-*   **Google:** The free Custom Search API allows 100 queries per day.
+*   **CrossRef:** Free (politeness delay included).
+*   **Semantic Scholar:** Free (stricter limits without key).
+*   **Google:** Free Custom Search API allows 100 queries/day.
 
 ## 🤝 Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Copyright (c) 2025 **oxyec**
+MIT License. Copyright (c) 2025 **oxyec**.
