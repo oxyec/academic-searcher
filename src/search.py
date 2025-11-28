@@ -25,11 +25,19 @@ def search_crossref(query, rows):
     params = {"query.title": query, "rows": rows}
     r = safe_get(url, params=params)
     if not r: return []
+    try:
+        return r.json().get("message", {}).get("items", [])
+    except:
+        return []
     return r.json().get("message", {}).get("items", [])
 
 def process_crossref(query, rows):
     print(f"   [Starting] CrossRef search for '{query}'...")
     items = search_crossref(query, rows)
+    if not items:
+        print(f"   [Finished] CrossRef found 0 items (Empty response).")
+        return []
+
     results = []
     for item in items:
         title = item.get('title',['No Title'])[0]
@@ -62,11 +70,19 @@ def search_semanticscholar(query, limit):
 
     r = safe_get(url, params=params, headers=headers)
     if not r: return []
+    try:
+        return r.json().get("data", [])
+    except:
+        return []
     return r.json().get("data", [])
 
 def process_semanticscholar(query, limit):
     print(f"   [Starting] Semantic Scholar search for '{query}'...")
     items = search_semanticscholar(query, limit)
+    if not items:
+        print(f"   [Finished] Semantic Scholar found 0 items (Empty response).")
+        return []
+
     results = []
     for item in items:
         doi = item.get('doi')
@@ -96,6 +112,10 @@ def search_google(query, key, cse, num):
     params = {"q": query, "key": key, "cx": cse, "num": real_num}
     r = safe_get(url, params=params)
     if not r: return []
+    try:
+        return r.json().get("items", [])
+    except:
+        return []
     return r.json().get("items", [])
 
 def process_google(query, limit, key, cse):
