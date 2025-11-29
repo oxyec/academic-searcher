@@ -1,8 +1,5 @@
 from src.config import OUTPUT_CSV
 from src.core import search_all_sources
-import concurrent.futures
-from src.config import OUTPUT_CSV, GOOGLE_API_KEY, CSE_ID
-from src.search import process_crossref, process_semanticscholar, process_google
 from src.export import save_to_csv
 
 def main():
@@ -35,35 +32,8 @@ def main():
 
         print(f"\n🔎 Searching for '{query}'...")
 
-        # Use the core logic
+        # Use the core logic (returns a combined list of results)
         all_results = search_all_sources(query, results_limit)
-
-        # Save results
-        # Using ThreadPoolExecutor for parallel execution
-        # We have 3 sources: CrossRef, Semantic Scholar, Google
-        all_results = []
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            # Schedule the tasks
-            futures = []
-            
-            # 1. CrossRef
-            futures.append(executor.submit(process_crossref, query, results_limit))
-            
-            # 2. Semantic Scholar
-            futures.append(executor.submit(process_semanticscholar, query, results_limit))
-
-            # 3. Google (only if configured)
-            if GOOGLE_API_KEY and CSE_ID:
-                futures.append(executor.submit(process_google, query, results_limit, GOOGLE_API_KEY, CSE_ID))
-            
-            # Wait for all to complete and gather results
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    data = future.result()
-                    all_results.extend(data)
-                except Exception as exc:
-                    print(f"   [!] Generated an exception: {exc}")
 
         # Save all results
         print(f"\n   -> Processing {len(all_results)} total results...")
