@@ -54,6 +54,7 @@ The easiest way to use the tool. Opens in your browser.
 streamlit run app.py
 
 # Option B (Direct Python execution)
+# Use this if 'streamlit' command is not found
 python app.py
 ```
 
@@ -70,6 +71,14 @@ python api.py
 ```
 *   **Swagger Docs:** Visit `http://localhost:8000/docs` to test endpoints.
 *   **Example Query:** `http://localhost:8000/search?query=machine+learning&limit=5`
+
+## ❓ Troubleshooting
+
+**Error: `'streamlit' is not recognized as the name of a cmdlet...`**
+*   This means the `streamlit` executable is not in your system's PATH.
+*   **Solution 1:** Use `python app.py` instead. This version of the app includes a helper to launch itself correctly.
+*   **Solution 2:** Use `python -m streamlit run app.py`.
+*   **Solution 3:** Ensure you have installed dependencies (`pip install -r requirements.txt`).
 
 ## 📂 Output Format
 
