@@ -276,8 +276,9 @@ def main():
 if __name__ == "__main__":
     from streamlit.web import cli as stcli
 
-    if st.runtime.exists():
-        main()
-    else:
+    # Check if running directly via python
+    if "streamlit" not in sys.modules:
         sys.argv = ["streamlit", "run", sys.argv[0], "--server.headless", "true"]
         sys.exit(stcli.main())
+    else:
+        main()
