@@ -1,88 +1,15 @@
+import sys
 import streamlit as st
 import pandas as pd
 from src.core import search_all_sources
 from src.utils import clean_text
 
-def main():
-    st.set_page_config(page_title="Academic Research Assistant", page_icon="📚", layout="wide")
-
-    st.title("📚 Academic Research Assistant")
-    st.markdown("""
-    This tool automates the process of searching for academic papers.
-    It queries **CrossRef**, **Semantic Scholar**, and **Google** (if configured),
-    checks for free PDFs via **Unpaywall**, and lets you export the results.
-    """)
-
-    # Sidebar settings
-    with st.sidebar:
-        st.header("Settings")
-        limit = st.number_input("Articles per source", min_value=1, max_value=20, value=5)
-        st.info("Higher limits make the search take longer.")
-
-    # Main search interface
-    query = st.text_input("Enter Research Topic/Keyword", placeholder="e.g. Machine Learning in Healthcare")
-
-    if st.button("Search", type="primary"):
-        if not query:
-            st.warning("Please enter a search term.")
-        else:
-            with st.spinner(f"Searching for '{query}'..."):
-                results = search_all_sources(query, limit)
-
-            if not results:
-                st.error("No results found.")
-            else:
-                st.success(f"Found {len(results)} articles!")
-
-                # Convert to DataFrame
-                df = pd.DataFrame(results)
-
-                # Clean up column names for display
-                display_columns = {
-                    'source': 'Source',
-                    'title': 'Title',
-                    'authors': 'Authors',
-                    'year': 'Year',
-                    'venue': 'Venue',
-                    'oa_status': 'OA Status',
-                    'pdf_link': 'PDF Link',
-                    'doi': 'DOI',
-                    'url': 'URL'
-                }
-                # Select and rename columns if they exist
-                cols_to_show = [c for c in display_columns.keys() if c in df.columns]
-                df_display = df[cols_to_show].rename(columns=display_columns)
-
-                st.dataframe(df_display, use_container_width=True)
-
-                # CSV Download
-                csv = df_display.to_csv(index=False).encode('utf-8-sig')
-
-                st.download_button(
-                    label="📥 Download Results as CSV",
-                    data=csv,
-                    file_name=f"research_results_{query.replace(' ', '_')}.csv",
-                    mime="text/csv",
-                )
-
-if __name__ == "__main__":
-    import sys
-    from streamlit.web import cli as stcli
-
-    # Check if running directly via python
-    if "streamlit" not in sys.modules:
-        sys.argv = ["streamlit", "run", sys.argv[0]]
-        sys.exit(stcli.main())
-    else:
-        main()
 # Try import AgGrid
 try:
     from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
     AGGRID_AVAILABLE = True
 except Exception:
     AGGRID_AVAILABLE = False
-
-st.set_page_config(page_title="Academic Research Assistant — Full Suite", page_icon="📚", layout="wide")
 
 # ----------------------
 # Helpers
@@ -197,148 +124,161 @@ def aggrid_show(df):
     selected = grid_response.get('selected_rows', [])
     return selected
 
-# ----------------------
-# Layout
-# ----------------------
-st.title("📚 Academic Research Assistant — Everything Pack")
-st.markdown("Search CrossRef, Semantic Scholar, Google (opt), check OA via Unpaywall, preview PDFs, export BibTeX/RIS, and more.")
+def main():
+    st.set_page_config(page_title="Academic Research Assistant — Full Suite", page_icon="📚", layout="wide")
 
-# Sidebar
-with st.sidebar:
-    st.subheader("Settings")
-    limit = st.number_input("Articles per source", min_value=1, max_value=100, value=5, key="limit_input")
-    sources = st.multiselect("Sources", options=['CrossRef','Semantic Scholar','Google'], default=['CrossRef','Semantic Scholar'], key='sources_select')
-    year_min, year_max = st.slider("Year range", 1900, 2026, (2000, 2025), key='year_slider')
-    oa_filter = st.selectbox("Open access", options=['Any','Only OA','Only Closed'], index=0, key='oa_select')
-    st.markdown("---")
-    st.markdown("**Export / Tools**")
-    st.checkbox("Show PDF preview panel", value=True, key='pdf_preview_checkbox')
-    st.caption("Tip: increase limits for broader results. Higher = slower.")
+    # ----------------------
+    # Layout
+    # ----------------------
+    st.title("📚 Academic Research Assistant — Everything Pack")
+    st.markdown("Search CrossRef, Semantic Scholar, Google (opt), check OA via Unpaywall, preview PDFs, export BibTeX/RIS, and more.")
 
-# Search area
-col1, col2 = st.columns([8,2])
-with col1:
-    query = st.text_input("🔍 Search papers", placeholder="e.g. Machine Learning in Healthcare", key='query_input')
-with col2:
-    search_btn = st.button("Search", type='primary', key='search_btn')
+    # Sidebar
+    with st.sidebar:
+        st.subheader("Settings")
+        limit = st.number_input("Articles per source", min_value=1, max_value=100, value=5, key="limit_input")
+        sources = st.multiselect("Sources", options=['CrossRef','Semantic Scholar','Google'], default=['CrossRef','Semantic Scholar'], key='sources_select')
+        year_min, year_max = st.slider("Year range", 1900, 2026, (2000, 2025), key='year_slider')
+        oa_filter = st.selectbox("Open access", options=['Any','Only OA','Only Closed'], index=0, key='oa_select')
+        st.markdown("---")
+        st.markdown("**Export / Tools**")
+        st.checkbox("Show PDF preview panel", value=True, key='pdf_preview_checkbox')
+        st.caption("Tip: increase limits for broader results. Higher = slower.")
 
-# Determine run
-if 'last_query' not in st.session_state:
-    st.session_state['last_query'] = ''
-run_search = False
-if search_btn:
-    run_search = True
-elif query and query.strip() and query.strip() != st.session_state['last_query']:
-    # Enter pressed / new input
-    run_search = True
+    # Search area
+    col1, col2 = st.columns([8,2])
+    with col1:
+        query = st.text_input("🔍 Search papers", placeholder="e.g. Machine Learning in Healthcare", key='query_input')
+    with col2:
+        search_btn = st.button("Search", type='primary', key='search_btn')
 
-selected_rows = []
-df_display = pd.DataFrame()
+    # Determine run
+    if 'last_query' not in st.session_state:
+        st.session_state['last_query'] = ''
+    run_search = False
+    if search_btn:
+        run_search = True
+    elif query and query.strip() and query.strip() != st.session_state['last_query']:
+        # Enter pressed / new input
+        run_search = True
 
-if run_search:
-    st.session_state['last_query'] = query.strip()
-    q = query.strip()
-    if not q:
-        st.warning("Lütfen bir arama terimi girin.")
-    else:
-        with st.spinner(f"Searching '{q}'..."):
-            # Expect search_all_sources to accept sources list and limit
-            results = search_all_sources(q, limit=limit, sources=sources)
-        if not results:
-            st.error("No results found.")
+    selected_rows = []
+    df_display = pd.DataFrame()
+
+    if run_search:
+        st.session_state['last_query'] = query.strip()
+        q = query.strip()
+        if not q:
+            st.warning("Please enter a search term.")
         else:
-            st.success(f"Found {len(results)} raw results.")
-            df = pd.DataFrame(results)
-
-            # Map and rename
-            column_map = {
-                'source':'Source','title':'Title','authors':'Authors','year':'Year',
-                'venue':'Venue','oa_status':'OA','pdf_link':'PDF','doi':'DOI','url':'URL'
-            }
-            cols = [c for c in column_map.keys() if c in df.columns]
-            df_display = df[cols].rename(columns=column_map)
-
-            # Normalize authors to string
-            if 'Authors' in df_display.columns:
-                df_display['Authors'] = df_display['Authors'].apply(lambda x: ', '.join(x) if isinstance(x,(list,tuple)) else x)
-
-            # Apply filters
-            if 'Year' in df_display.columns:
-                df_display = df_display[(df_display['Year'] >= year_min) & (df_display['Year'] <= year_max)]
-            if oa_filter != 'Any' and 'OA' in df_display.columns:
-                want_oa = (oa_filter == 'Only OA')
-                df_display = df_display[df_display['OA'].apply(lambda v: bool(v) if pd.notna(v) else False) == want_oa]
-            if 'Source' in df_display.columns and sources:
-                df_display = df_display[df_display['Source'].isin(sources)]
-
-            st.markdown(f"**Displayed results:** {len(df_display)}")
-
-            # Layout: table + right panel for details/preview
-            if st.session_state.get('pdf_preview_checkbox', True):
-                left, right = st.columns([3,2])
+            with st.spinner(f"Searching '{q}'..."):
+                # Expect search_all_sources to accept sources list and limit
+                results = search_all_sources(q, limit=limit, sources=sources)
+            if not results:
+                st.error("No results found.")
             else:
-                left = st.container()
-                right = None
+                st.success(f"Found {len(results)} raw results.")
+                df = pd.DataFrame(results)
 
-            with left:
-                if AGGRID_AVAILABLE:
-                    selected_rows = aggrid_show(df_display)
+                # Map and rename
+                column_map = {
+                    'source':'Source','title':'Title','authors':'Authors','year':'Year',
+                    'venue':'Venue','oa_status':'OA','pdf_link':'PDF','doi':'DOI','url':'URL'
+                }
+                cols = [c for c in column_map.keys() if c in df.columns]
+                df_display = df[cols].rename(columns=column_map)
+
+                # Normalize authors to string
+                if 'Authors' in df_display.columns:
+                    df_display['Authors'] = df_display['Authors'].apply(lambda x: ', '.join(x) if isinstance(x,(list,tuple)) else x)
+
+                # Apply filters
+                if 'Year' in df_display.columns:
+                    df_display = df_display[(df_display['Year'] >= year_min) & (df_display['Year'] <= year_max)]
+                if oa_filter != 'Any' and 'OA' in df_display.columns:
+                    want_oa = (oa_filter == 'Only OA')
+                    df_display = df_display[df_display['OA'].apply(lambda v: bool(v) if pd.notna(v) else False) == want_oa]
+                if 'Source' in df_display.columns and sources:
+                    df_display = df_display[df_display['Source'].isin(sources)]
+
+                st.markdown(f"**Displayed results:** {len(df_display)}")
+
+                # Layout: table + right panel for details/preview
+                if st.session_state.get('pdf_preview_checkbox', True):
+                    left, right = st.columns([3,2])
                 else:
-                    st.dataframe(df_display, use_container_width=True)
+                    left = st.container()
+                    right = None
 
-                # Download CSV
-                csv = df_display.to_csv(index=False).encode('utf-8-sig')
-                st.download_button("📥 Download CSV", csv, file_name=f"results_{q.replace(' ','_')}.csv", mime='text/csv', key='dl_csv')
-
-                # BibTeX & RIS exports for all displayed rows
-                if st.button("📚 Generate BibTeX for displayed", key='gen_bib_all'):
-                    bibs = [to_bibtex_entry(row) for _, row in df_display.iterrows()]
-                    bibtxt = "\n".join(bibs)
-                    st.download_button("Download BibTeX", data=bibtxt.encode('utf-8'), file_name=f"citations_{q.replace(' ','_')}.bib", mime='text/plain', key='dl_bib_all')
-
-                if st.button("🔁 Export RIS for Zotero/EndNote", key='gen_ris_all'):
-                    ris_txt = "".join([to_ris_entry(row) for _, row in df_display.iterrows()])
-                    st.download_button("Download RIS", data=ris_txt.encode('utf-8'), file_name=f"citations_{q.replace(' ','_')}.ris", mime='text/plain', key='dl_ris_all')
-
-            # Right panel: details
-            if right is not None:
-                with right:
-                    st.subheader("Selected item")
-                    if selected_rows:
-                        sel = selected_rows[0]
-                        # Show fields
-                        st.markdown(f"**Title:** {sel.get('Title','-')}")
-                        st.markdown(f"**Authors:** {sel.get('Authors','-')}")
-                        st.markdown(f"**Year / Venue:** {sel.get('Year','-')} / {sel.get('Venue','-')}")
-                        st.markdown(f"**DOI:** {sel.get('DOI','-')}")
-                        st.markdown(f"**Source:** {sel.get('Source','-')}")
-                        st.markdown("---")
-                        # BibTeX for selected
-                        bib = to_bibtex_entry(sel)
-                        st.text_area("BibTeX (copy)", value=bib, height=160, key='bibtex_area')
-                        if st.download_button("Download selected BibTeX", data=bib.encode('utf-8'), file_name=f"cite_selected_{q.replace(' ','_')}.bib", mime='text/plain', key='dl_bib_sel'):
-                            pass
-                        # RIS for selected
-                        ris = to_ris_entry(sel)
-                        if st.download_button("Download selected RIS (Zotero)", data=ris.encode('utf-8'), file_name=f"cite_selected_{q.replace(' ','_')}.ris", mime='text/plain', key='dl_ris_sel'):
-                            pass
-
-                        # PDF preview if exists
-                        pdf_url = sel.get('PDF') or sel.get('pdf_link') or None
-                        if pdf_url:
-                            st.markdown("**PDF Preview:**")
-                            # iframe preview (may be blocked by CORS)
-                            try:
-                                st.components.v1.iframe(pdf_url, height=500, scrolling=True)
-                            except Exception as e:
-                                st.write("Preview not available — opening in new tab:")
-                                st.write(f"[Open PDF]({pdf_url})")
-                        else:
-                            st.info("No PDF link available for this item.")
+                with left:
+                    if AGGRID_AVAILABLE:
+                        selected_rows = aggrid_show(df_display)
                     else:
-                        st.write("Select a row in the table to see details and preview.")
+                        st.dataframe(df_display, use_container_width=True)
 
-# Footer notes
-st.markdown("---")
-st.caption("Pro tip: AgGrid provides best UX (pip install streamlit-aggrid). PDF inline preview may be blocked by some servers (CORS) — use 'Open PDF' button in that case.")
-st.caption("Developed by Oxyec. Powered by Streamlit.")
+                    # Download CSV
+                    csv = df_display.to_csv(index=False).encode('utf-8-sig')
+                    st.download_button("📥 Download CSV", csv, file_name=f"results_{q.replace(' ','_')}.csv", mime='text/csv', key='dl_csv')
+
+                    # BibTeX & RIS exports for all displayed rows
+                    if st.button("📚 Generate BibTeX for displayed", key='gen_bib_all'):
+                        bibs = [to_bibtex_entry(row) for _, row in df_display.iterrows()]
+                        bibtxt = "\n".join(bibs)
+                        st.download_button("Download BibTeX", data=bibtxt.encode('utf-8'), file_name=f"citations_{q.replace(' ','_')}.bib", mime='text/plain', key='dl_bib_all')
+
+                    if st.button("🔁 Export RIS for Zotero/EndNote", key='gen_ris_all'):
+                        ris_txt = "".join([to_ris_entry(row) for _, row in df_display.iterrows()])
+                        st.download_button("Download RIS", data=ris_txt.encode('utf-8'), file_name=f"citations_{q.replace(' ','_')}.ris", mime='text/plain', key='dl_ris_all')
+
+                # Right panel: details
+                if right is not None:
+                    with right:
+                        st.subheader("Selected item")
+                        if selected_rows:
+                            sel = selected_rows[0]
+                            # Show fields
+                            st.markdown(f"**Title:** {sel.get('Title','-')}")
+                            st.markdown(f"**Authors:** {sel.get('Authors','-')}")
+                            st.markdown(f"**Year / Venue:** {sel.get('Year','-')} / {sel.get('Venue','-')}")
+                            st.markdown(f"**DOI:** {sel.get('DOI','-')}")
+                            st.markdown(f"**Source:** {sel.get('Source','-')}")
+                            st.markdown("---")
+                            # BibTeX for selected
+                            bib = to_bibtex_entry(sel)
+                            st.text_area("BibTeX (copy)", value=bib, height=160, key='bibtex_area')
+                            if st.download_button("Download selected BibTeX", data=bib.encode('utf-8'), file_name=f"cite_selected_{q.replace(' ','_')}.bib", mime='text/plain', key='dl_bib_sel'):
+                                pass
+                            # RIS for selected
+                            ris = to_ris_entry(sel)
+                            if st.download_button("Download selected RIS (Zotero)", data=ris.encode('utf-8'), file_name=f"cite_selected_{q.replace(' ','_')}.ris", mime='text/plain', key='dl_ris_sel'):
+                                pass
+
+                            # PDF preview if exists
+                            pdf_url = sel.get('PDF') or sel.get('pdf_link') or None
+                            if pdf_url:
+                                st.markdown("**PDF Preview:**")
+                                # iframe preview (may be blocked by CORS)
+                                try:
+                                    st.components.v1.iframe(pdf_url, height=500, scrolling=True)
+                                except Exception as e:
+                                    st.write("Preview not available — opening in new tab:")
+                                    st.write(f"[Open PDF]({pdf_url})")
+                            else:
+                                st.info("No PDF link available for this item.")
+                        else:
+                            st.write("Select a row in the table to see details and preview.")
+
+    # Footer notes
+    st.markdown("---")
+    st.caption("Pro tip: AgGrid provides best UX (pip install streamlit-aggrid). PDF inline preview may be blocked by some servers (CORS) — use 'Open PDF' button in that case.")
+    st.caption("Developed by Oxyec. Powered by Streamlit.")
+
+if __name__ == "__main__":
+    from streamlit.web import cli as stcli
+
+    # Check if running directly via python
+    if "streamlit" not in sys.modules:
+        sys.argv = ["streamlit", "run", sys.argv[0], "--server.headless", "true"]
+        sys.exit(stcli.main())
+    else:
+        main()
