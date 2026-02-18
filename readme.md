@@ -1,108 +1,153 @@
-# 📚 Academic Research Assistant
+# Academic Research Assistant
 
-A Python-based tool that automates the process of searching for academic papers. It queries multiple databases simultaneously, checks for free (Open Access) PDFs via Unpaywall, and exports the results.
+Academic Research Assistant is a multi-interface paper discovery project:
+- Streamlit web app (`app.py`)
+- CLI workflow (`main.py`)
+- FastAPI service (`api.py`)
 
-Now featuring a **CLI**, a **Web App**, and a **REST API**!
+The web app is optimized for interactive research with filtering, ranking, deduplication, diagnostics, and export workflows.
 
-## 🚀 Features
+## Highlights
 
-*   **Multi-Source Search:** Queries **CrossRef**, **Semantic Scholar**, and **Google Custom Search** (optional).
-*   **PDF Discovery:** Automatically checks **Unpaywall** and Semantic Scholar for direct links to free PDFs.
-*   **Excel-Ready Export:** Saves data to a CSV file with proper encoding (`UTF-8-SIG`).
-*   **Three Interfaces:**
-    *   **CLI:** Interactive command-line tool.
-    *   **Web App:** Modern browser-based interface powered by Streamlit.
-    *   **API:** REST API powered by FastAPI.
+- Async multi-source search across Semantic Scholar, OpenAlex, ArXiv, Crossref, and optional Google Custom Search.
+- Smart deduplication and relevance scoring with adjustable weights.
+- Research workflow tools: saved setups, reading list, and exports (CSV, JSON, BibTeX, markdown brief).
+- API and CLI options for automation or scripting.
 
-## 📋 Prerequisites
+## Tech Stack
 
-*   Python 3.8 or higher
-*   Internet connection
+- Python
+- Streamlit
+- FastAPI + Uvicorn
+- Pandas + Altair
+- Requests + asyncio
 
-## 🛠️ Installation
+## Project Structure
 
-1.  **Clone this repository** (or download the files):
-    ```bash
-    git clone https://github.com/oxyec/academic-searcher.git
-    cd academic-searcher
-    ```
+```text
+.
+|-- app.py                  # Streamlit UI (main app)
+|-- api.py                  # FastAPI service
+|-- main.py                 # CLI entry point
+|-- src/
+|   |-- app_utils.py        # scoring, dedupe, dataframe prep, persistence helpers
+|   |-- search_sources.py   # async source adapters for the Streamlit app
+|   |-- core.py             # async orchestration used by CLI/API path
+|   |-- search.py           # source processors used by CLI/API path
+|   |-- export.py           # CSV export helpers
+|   |-- config.py           # env-based config
+|   `-- utils.py            # request and text utilities
+|-- requirements.txt
+`-- .streamlit/config.toml  # Streamlit theme/config
+```
 
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Requirements
 
-## ⚙️ Configuration (API Keys)
+- Python 3.9+
+- internet access for upstream APIs
 
-Create a `.env` file in the project root:
+## Quick Start
+
+```bash
+git clone <your-repo-url>
+cd acedamic-searcher
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+python -m streamlit run app.py
+```
+
+## Configuration
+
+You can use the Streamlit app without API keys, but optional keys improve quality and limits.
+
+Create a `.env` file in the project root if you want defaults for CLI/API:
 
 ```ini
-# .env configuration
 UNPAYWALL_EMAIL=your_email@example.com
-# Optional
 S2_API_KEY=
 GOOGLE_API_KEY=
 CSE_ID=
 ```
 
-## 🏃‍♂️ How to Run
+Configuration reference:
 
-### 1. Web App (Recommended)
-The easiest way to use the tool. Opens in your browser.
+| Variable | Used by | Required | Purpose |
+|---|---|---|---|
+| `UNPAYWALL_EMAIL` | CLI/API path | Recommended | Contact email for Unpaywall/Crossref politeness |
+| `S2_API_KEY` | CLI/API config | Optional | Semantic Scholar API key |
+| `GOOGLE_API_KEY` | CLI/API + app (manual input allowed) | Optional | Google Custom Search API key |
+| `CSE_ID` | CLI/API + app (manual input allowed) | Optional | Google Custom Search Engine ID |
+
+Notes:
+- In Streamlit, API keys can also be entered in the sidebar and do not need `.env`.
+- Crossref email is configurable directly in the UI.
+
+## Run Modes
+
+### Streamlit app (recommended)
+
 ```bash
-# Option A (Standard Streamlit way)
-streamlit run app.py
-
-# Option B (Direct Python execution)
-# Use this if 'streamlit' command is not found
-python app.py
+python -m streamlit run app.py
 ```
 
-### 2. Command Line Interface (CLI)
-Classic interactive terminal mode.
+### CLI
+
 ```bash
 python main.py
 ```
 
-### 3. REST API
-Start the API server (available at `http://localhost:8000`).
+### API
+
 ```bash
 python api.py
 ```
-*   **Swagger Docs:** Visit `http://localhost:8000/docs` to test endpoints.
-*   **Example Query:** `http://localhost:8000/search?query=machine+learning&limit=5`
 
-## ❓ Troubleshooting
+Alternative API startup:
 
-**Error: `'streamlit' is not recognized as the name of a cmdlet...`**
-*   This means the `streamlit` executable is not in your system's PATH.
-*   **Solution 1:** Use `python app.py` instead. This version of the app includes a helper to launch itself correctly.
-*   **Solution 2:** Use `python -m streamlit run app.py`.
-*   **Solution 3:** Ensure you have installed dependencies (`pip install -r requirements.txt`).
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+```
 
-## 📂 Output Format
+Swagger docs: `http://localhost:8000/docs`
 
-Results from the CLI and Web App are saved as `research_results_YYYYMMDD_HHMMSS.csv`.
+## API Usage Example
 
-**Columns Included:**
-*   **Source:** (CrossRef, Semantic Scholar, Google)
-*   **Title & Authors**
-*   **Year & Venue**
-*   **DOI:** Digital Object Identifier
-*   **Open Access Status:** `gold`, `green`, `hybrid`, or `closed`
-*   **PDF Link:** Direct clickable link to the PDF
-*   **Date Accessed:** Timestamp
+```bash
+curl "http://localhost:8000/search?query=graph+neural+networks&limit=5"
+```
 
-## ⚠️ API Limits
+## Outputs
 
-*   **CrossRef:** Free (politeness delay included).
-*   **Semantic Scholar:** Free (stricter limits without key).
-*   **Google:** Free Custom Search API allows 100 queries/day.
+- Streamlit app provides in-app downloads for:
+  - results CSV
+  - results JSON
+  - BibTeX references
+  - markdown research brief
+  - reading list exports
+- CLI writes timestamped CSV files:
+  - `research_results_YYYYMMDD_HHMMSS.csv`
+- App state is persisted to:
+  - `.academic_search_state.json`
 
-## 🤝 Contributing
+## Known Limits
 
-Pull requests are welcome.
+- Google Custom Search returns max 10 results per request.
+- External API rate limits and occasional upstream downtime can affect response time and coverage.
+- Result quality depends on source metadata consistency.
 
-## 📄 License
+## Troubleshooting
 
-MIT License. Copyright (c) 2025 **oxyec**.
+- If `streamlit` is not in PATH:
+  - run `python -m streamlit run app.py`
+- If imports fail:
+  - activate your virtual environment
+  - run `pip install -r requirements.txt`
+- If searches are empty:
+  - verify internet access
+  - test with fewer sources first
+  - provide optional API keys for stricter-rate-limit providers
+
+## License
+
+MIT
