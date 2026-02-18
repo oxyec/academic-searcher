@@ -10,6 +10,7 @@ import pandas as pd
 
 CURRENT_YEAR = datetime.now().year
 STATE_FILE = ".academic_search_state.json"
+PERSIST_STATE_ENV = "ACADEMIC_SEARCH_PERSIST_STATE"
 STOPWORDS = {
     "about",
     "after",
@@ -45,6 +46,11 @@ STOPWORDS = {
     "with",
     "without",
 }
+
+
+def state_persistence_enabled():
+    value = os.getenv(PERSIST_STATE_ENV, "false")
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def clean_text(text):
@@ -132,6 +138,8 @@ def to_bibtex_entry(row):
 
 def load_persisted_state():
     default_state = {"saved_searches": [], "bookmarks": {}}
+    if not state_persistence_enabled():
+        return default_state
     if not os.path.exists(STATE_FILE):
         return default_state
 
@@ -151,6 +159,9 @@ def load_persisted_state():
 
 
 def persist_state(saved_searches, bookmarks):
+    if not state_persistence_enabled():
+        return
+
     safe_bookmarks = {}
     for key, value in bookmarks.items():
         if not isinstance(value, dict):

@@ -83,7 +83,7 @@ async def process_arxiv(query, limit):
     Queries the ArXiv API and parses the XML response.
     """
     print(f"   [Starting] ArXiv search for '{query}'...")
-    url = "http://export.arxiv.org/api/query"
+    url = "https://export.arxiv.org/api/query"
     params = {"search_query": f"all:{query}", "start": 0, "max_results": limit}
     
     r = await safe_get_async(url, params=params)

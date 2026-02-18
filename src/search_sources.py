@@ -110,7 +110,7 @@ async def search_openalex(query, limit=10):
 
 
 async def search_arxiv(query, limit=10):
-    url = "http://export.arxiv.org/api/query"
+    url = "https://export.arxiv.org/api/query"
     params = {"search_query": f"all:{query}", "start": 0, "max_results": limit}
     response = await make_request(url, params)
     if not response:

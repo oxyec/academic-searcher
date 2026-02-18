@@ -20,6 +20,7 @@ from src.app_utils import (
     load_persisted_state,
     persist_state,
     prepare_dataframe,
+    state_persistence_enabled,
     to_bibtex_entry,
 )
 from src.search_sources import search_all_sources
@@ -285,7 +286,11 @@ def render_sidebar_tools():
         with st.container(border=True):
             st.markdown("**Reading List**")
             bookmark_count = len(st.session_state["bookmarks"])
-            st.caption(f"{bookmark_count} saved papers")
+            if state_persistence_enabled():
+                st.caption(f"{bookmark_count} saved papers")
+            else:
+                st.caption(f"{bookmark_count} papers in this session")
+                st.caption("Persistence is disabled for deployment safety.")
             if bookmark_count > 0:
                 bookmark_df = pd.DataFrame(st.session_state["bookmarks"].values())
                 st.download_button(

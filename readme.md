@@ -80,10 +80,12 @@ Configuration reference:
 | `S2_API_KEY` | CLI/API config | Optional | Semantic Scholar API key |
 | `GOOGLE_API_KEY` | CLI/API + app (manual input allowed) | Optional | Google Custom Search API key |
 | `CSE_ID` | CLI/API + app (manual input allowed) | Optional | Google Custom Search Engine ID |
+| `ACADEMIC_SEARCH_PERSIST_STATE` | Streamlit app | Optional (default `false`) | Enable disk persistence for saved setups/bookmarks (`true` enables `.academic_search_state.json`) |
 
 Notes:
 - In Streamlit, API keys can also be entered in the sidebar and do not need `.env`.
 - Crossref email is configurable directly in the UI.
+- Streamlit deployments should keep `ACADEMIC_SEARCH_PERSIST_STATE=false` to avoid shared cross-user state.
 
 ## Run Modes
 
