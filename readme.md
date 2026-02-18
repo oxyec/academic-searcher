@@ -152,6 +152,10 @@ curl "http://localhost:8000/search?query=graph+neural+networks&limit=5"
   - test with fewer sources first
   - provide optional API keys for stricter-rate-limit providers
 
+
 ## License
 
-MIT
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. 
+See the [LICENSE](LICENSE) file for the full text.
+
+Copyright (c) 2026 oxyec
