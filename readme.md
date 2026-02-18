@@ -1,5 +1,7 @@
 # Academic Research Assistant
 
+#Demo link = https://academic-searcher.streamlit.app
+
 Academic Research Assistant is a multi-interface paper discovery project:
 - Streamlit web app (`app.py`)
 - CLI workflow (`main.py`)
