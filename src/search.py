@@ -1,7 +1,7 @@
-import requests
+import asyncio
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
-from .utils import safe_get, format_authors
+from .utils import safe_get_async, format_authors
 from .config import UNPAYWALL_EMAIL, GOOGLE_API_KEY, CSE_ID
 
 def reconstruct_abstract(inverted_index):
@@ -19,14 +19,14 @@ def reconstruct_abstract(inverted_index):
     word_index.sort()
     return " ".join([word for _, word in word_index])
 
-def get_unpaywall_data(doi, email):
+async def get_unpaywall_data(doi, email):
     """
     Retrieves Open Access status and PDF links using the Unpaywall API.
     """
     if not doi: return "No DOI", ""
     url = f"https://api.unpaywall.org/v2/{quote_plus(doi)}"
     params = {"email": email}
-    r = safe_get(url, params=params)
+    r = await safe_get_async(url, params=params)
     if not r: return "Unknown", ""
 
     try:
@@ -40,7 +40,7 @@ def get_unpaywall_data(doi, email):
     except:
         return "Error", ""
 
-def process_openalex(query, limit):
+async def process_openalex(query, limit):
     """
     Queries the OpenAlex API and processes results into a standard format.
     """
@@ -48,7 +48,7 @@ def process_openalex(query, limit):
     url = "https://api.openalex.org/works"
     params = {"search": query, "per_page": limit, "mailto": UNPAYWALL_EMAIL}
     
-    r = safe_get(url, params=params)
+    r = await safe_get_async(url, params=params)
     if not r: return []
     
     results = []
@@ -78,7 +78,7 @@ def process_openalex(query, limit):
         
     return results
 
-def process_arxiv(query, limit):
+async def process_arxiv(query, limit):
     """
     Queries the ArXiv API and parses the XML response.
     """
@@ -86,7 +86,7 @@ def process_arxiv(query, limit):
     url = "http://export.arxiv.org/api/query"
     params = {"search_query": f"all:{query}", "start": 0, "max_results": limit}
     
-    r = safe_get(url, params=params)
+    r = await safe_get_async(url, params=params)
     if not r or not r.content: return []
     
     results = []
@@ -121,7 +121,7 @@ def process_arxiv(query, limit):
         
     return results
 
-def process_crossref(query, limit):
+async def process_crossref(query, limit):
     """
     Queries the CrossRef API and enriches results with Unpaywall data.
     """
@@ -129,16 +129,24 @@ def process_crossref(query, limit):
     url = "https://api.crossref.org/works"
     params = {"query.title": query, "rows": limit}
     
-    r = safe_get(url, params=params)
+    r = await safe_get_async(url, params=params)
     if not r: return []
     
     results = []
     try:
         items = r.json().get("message", {}).get("items", [])
-        for item in items:
+        oa_data = await asyncio.gather(
+            *(get_unpaywall_data(item.get('DOI'), UNPAYWALL_EMAIL) for item in items),
+            return_exceptions=True
+        )
+
+        for item, oa_result in zip(items, oa_data):
             doi = item.get('DOI')
-            oa_status, pdf_link = get_unpaywall_data(doi, UNPAYWALL_EMAIL)
-            
+            if isinstance(oa_result, Exception):
+                oa_status, pdf_link = "Error", ""
+            else:
+                oa_status, pdf_link = oa_result
+
             results.append({
                 'query': query, 'source': 'CrossRef',
                 'title': item.get('title', ['No Title'])[0],
@@ -155,7 +163,7 @@ def process_crossref(query, limit):
         
     return results
 
-def process_google(query, limit):
+async def process_google(query, limit):
     """
     Queries Google Custom Search API to find relevant academic pages or PDFs.
     """
@@ -171,7 +179,7 @@ def process_google(query, limit):
         "num": min(limit, 10) # API limit is 10
     }
     
-    r = safe_get(url, params=params)
+    r = await safe_get_async(url, params=params)
     if not r: return []
     
     results = []
@@ -195,6 +203,6 @@ def process_google(query, limit):
         
     return results
 
-def process_semanticscholar(query, limit):
+async def process_semanticscholar(query, limit):
     # Placeholder for future implementation
     return []

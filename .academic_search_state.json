@@ -1,0 +1,35 @@
+{
+  "saved_searches": [
+    {
+      "label": "ocr (2026-02-18 21:01)",
+      "config": {
+        "query_input": "ocr",
+        "sources_input": [
+          "Semantic Scholar",
+          "OpenAlex",
+          "ArXiv"
+        ],
+        "limit_input": 12,
+        "year_range_input": [
+          2016,
+          2026
+        ],
+        "min_citations_input": 0,
+        "oa_filter_input": false,
+        "dedupe_input": true,
+        "fuzzy_dedupe_input": false,
+        "fuzzy_threshold_input": 0.9,
+        "min_source_count_input": 1,
+        "sort_mode_input": "Relevance score",
+        "text_weight_input": 0.55,
+        "citation_weight_input": 0.25,
+        "recency_weight_input": 0.2,
+        "title_filter_input": "",
+        "author_filter_input": "",
+        "venue_filter_input": "",
+        "max_rows_input": 320
+      }
+    }
+  ],
+  "bookmarks": {}
+}
