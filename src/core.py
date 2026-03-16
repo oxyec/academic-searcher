@@ -1,7 +1,10 @@
+"""
+Async orchestration layer used by the CLI and API paths to fan out searches across all configured sources.
+"""
 import asyncio
 import concurrent.futures
-from .config import GOOGLE_API_KEY, CSE_ID
-from .search import process_crossref, process_openalex, process_arxiv, process_google
+from .config import GOOGLE_API_KEY, CSE_ID, S2_API_KEY
+from .search import process_crossref, process_openalex, process_arxiv, process_google, process_semanticscholar
 
 async def search_all_sources_async(query, limit, sources=None):
     """
@@ -12,6 +15,9 @@ async def search_all_sources_async(query, limit, sources=None):
         # Add Google if credentials are provided
         if GOOGLE_API_KEY and CSE_ID:
             sources.append("google")
+        # Add Semantic Scholar if an API key is configured
+        if S2_API_KEY:
+            sources.append("semanticscholar")
 
     sources_lower = [s.lower() for s in sources]
     all_results = []
@@ -28,6 +34,9 @@ async def search_all_sources_async(query, limit, sources=None):
 
     if "google" in sources_lower:
         tasks.append(process_google(query, limit))
+
+    if "semanticscholar" in sources_lower:
+        tasks.append(process_semanticscholar(query, limit))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for result in results:

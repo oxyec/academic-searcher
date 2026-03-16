@@ -1,3 +1,6 @@
+"""
+Low-level HTTP helpers and text/author formatting utilities used across the CLI/API path.
+"""
 import asyncio
 import requests
 import time
@@ -17,6 +20,9 @@ def clean_text(text):
     return " ".join(text.split())
 
 def _build_headers(headers=None):
+    """
+    Merges caller-supplied headers with a default User-Agent that identifies the bot.
+    """
     merged_headers = headers.copy() if headers else {}
     if 'User-Agent' not in merged_headers:
         merged_headers['User-Agent'] = f"AcademicSearchBot/1.0 (mailto:{UNPAYWALL_EMAIL})"

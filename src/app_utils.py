@@ -1,3 +1,6 @@
+"""
+Scoring, deduplication, DataFrame preparation, and persistence helpers used by the Streamlit app.
+"""
 import hashlib
 import json
 import math

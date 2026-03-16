@@ -1,3 +1,6 @@
+"""
+CSV export helper used by the CLI path to append individual result rows to a timestamped output file.
+"""
 import csv
 import os
 from datetime import datetime

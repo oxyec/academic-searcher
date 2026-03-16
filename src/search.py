@@ -1,8 +1,11 @@
+"""
+Async source adapters used by the CLI/API path; each processor queries one academic API and returns normalised rows.
+"""
 import asyncio
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 from .utils import safe_get_async, format_authors
-from .config import UNPAYWALL_EMAIL, GOOGLE_API_KEY, CSE_ID
+from .config import UNPAYWALL_EMAIL, GOOGLE_API_KEY, CSE_ID, S2_API_KEY
 
 def reconstruct_abstract(inverted_index):
     """
@@ -204,5 +207,45 @@ async def process_google(query, limit):
     return results
 
 async def process_semanticscholar(query, limit):
-    # Placeholder for future implementation
-    return []
+    """
+    Queries the Semantic Scholar Graph API and processes results into the standard CLI/API row format.
+    """
+    print(f"   [Starting] Semantic Scholar search for '{query}'...")
+    url = "https://api.semanticscholar.org/graph/v1/paper/search"
+    headers = {"x-api-key": S2_API_KEY} if S2_API_KEY else {}
+    params = {
+        "query": query,
+        "limit": limit,
+        "fields": "title,authors,year,url,openAccessPdf,venue,externalIds,citationCount,abstract,isOpenAccess",
+    }
+
+    r = await safe_get_async(url, params=params, headers=headers)
+    if not r:
+        return []
+
+    results = []
+    try:
+        for item in r.json().get("data", []):
+            authors = format_authors(item.get("authors", []))
+            pdf_link = ""
+            if item.get("openAccessPdf"):
+                pdf_link = item["openAccessPdf"].get("url", "")
+            doi = item.get("externalIds", {}).get("DOI", "") or ""
+            results.append({
+                "query": query,
+                "source": "Semantic Scholar",
+                "title": item.get("title", ""),
+                "authors": authors,
+                "year": item.get("year"),
+                "venue": item.get("venue", ""),
+                "doi": doi,
+                "url": item.get("url", ""),
+                "oa_status": "gold" if item.get("isOpenAccess") else "closed",
+                "pdf_link": pdf_link,
+                "citations": item.get("citationCount", 0),
+                "abstract": item.get("abstract") or "",
+            })
+    except Exception as e:
+        print(f"   [!] Semantic Scholar processing error: {e}")
+
+    return results

@@ -1,3 +1,6 @@
+"""
+Async source adapters for the Streamlit app; each function queries one external academic API and returns normalised rows.
+"""
 import asyncio
 import random
 import xml.etree.ElementTree as ET
