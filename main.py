@@ -1,9 +1,15 @@
+"""
+CLI entry point for the Academic Research Assistant.
+"""
 import asyncio
 from src.config import OUTPUT_CSV
 from src.core import search_all_sources_async
 from src.export import save_to_csv
 
 async def run_cli(results_limit):
+    """
+    Runs an interactive search loop, prompting for queries and saving results to CSV until the user exits.
+    """
     while True:
         query = input("Research Topic/Keyword: ").strip()
         if query.lower() in ["q", "exit", "quit"]:
@@ -22,6 +28,9 @@ async def run_cli(results_limit):
         print(f"\nDone. Data appended to: {OUTPUT_CSV}\n")
 
 def main():
+    """
+    Entry point for the CLI: prompts for a per-source result limit and starts the interactive search loop.
+    """
     print("\n" + "=" * 60)
     print("   ACADEMIC RESEARCH ASSISTANT - Article Finder")
     print("   contact: oxyec in github.com ")

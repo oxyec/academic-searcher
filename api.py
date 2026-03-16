@@ -1,3 +1,6 @@
+"""
+FastAPI service that exposes the academic paper search functionality over HTTP.
+"""
 from fastapi import FastAPI, HTTPException, Query
 from typing import List, Optional
 from pydantic import BaseModel
@@ -20,6 +23,9 @@ class SearchResult(BaseModel):
 
 @app.get("/")
 async def read_root():
+    """
+    Returns a welcome message and a usage hint for the API.
+    """
     return {"message": "Welcome to the Academic Research API. Use /search?query=... to find papers."}
 
 @app.get("/search", response_model=List[SearchResult])

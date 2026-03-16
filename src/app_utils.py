@@ -1,3 +1,6 @@
+"""
+Scoring, deduplication, DataFrame preparation, and persistence helpers used by the Streamlit app.
+"""
 import hashlib
 import json
 import math
@@ -49,17 +52,26 @@ STOPWORDS = {
 
 
 def state_persistence_enabled():
+    """
+    Returns True if disk-based state persistence is enabled via the environment variable.
+    """
     value = os.getenv(PERSIST_STATE_ENV, "false")
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def clean_text(text):
+    """
+    Strips and collapses whitespace in a string, returning an empty string for None.
+    """
     if text is None:
         return ""
     return re.sub(r"\s+", " ", str(text)).strip()
 
 
 def normalize_year(value):
+    """
+    Converts a value to an integer publication year, returning None for missing or invalid input.
+    """
     try:
         if pd.isna(value) or value in ("", None):
             return None
@@ -69,6 +81,9 @@ def normalize_year(value):
 
 
 def normalize_int(value):
+    """
+    Converts a value to an integer, returning 0 for missing or invalid input.
+    """
     try:
         if pd.isna(value) or value in ("", None):
             return 0
@@ -78,6 +93,9 @@ def normalize_int(value):
 
 
 def normalize_doi(value):
+    """
+    Normalizes a DOI string by lowercasing it and stripping common URL prefixes.
+    """
     doi = clean_text(value).lower()
     if not doi:
         return ""
@@ -87,12 +105,18 @@ def normalize_doi(value):
 
 
 def title_fingerprint(title):
+    """
+    Produces a normalised, punctuation-stripped token string suitable for duplicate detection.
+    """
     cleaned = re.sub(r"[^a-z0-9 ]+", " ", clean_text(title).lower())
     tokens = [token for token in cleaned.split() if len(token) > 2]
     return " ".join(tokens)
 
 
 def record_id_from_row(row):
+    """
+    Derives a stable unique identifier for a result row, preferring DOI then title then URL.
+    """
     doi = normalize_doi(row.get("DOI"))
     if doi:
         return f"doi:{doi}"
@@ -113,6 +137,9 @@ def record_id_from_row(row):
 
 
 def to_bibtex_entry(row):
+    """
+    Formats a result row as a BibTeX @article entry string.
+    """
     title = clean_text(row.get("Title", "No title"))
     year = str(row.get("Year", "n.d."))
     authors = clean_text(row.get("Authors", ""))
@@ -137,6 +164,9 @@ def to_bibtex_entry(row):
 
 
 def load_persisted_state():
+    """
+    Loads saved searches and bookmarks from disk, or returns defaults if persistence is disabled or the file is missing.
+    """
     default_state = {"saved_searches": [], "bookmarks": {}}
     if not state_persistence_enabled():
         return default_state
@@ -159,6 +189,9 @@ def load_persisted_state():
 
 
 def persist_state(saved_searches, bookmarks):
+    """
+    Serialises saved searches and bookmarks to the state JSON file on disk.
+    """
     if not state_persistence_enabled():
         return
 
@@ -183,6 +216,9 @@ def persist_state(saved_searches, bookmarks):
 
 
 def jaccard_similarity(left_tokens, right_tokens):
+    """
+    Computes the Jaccard similarity coefficient between two token sets.
+    """
     union = left_tokens | right_tokens
     if not union:
         return 0.0
@@ -190,6 +226,9 @@ def jaccard_similarity(left_tokens, right_tokens):
 
 
 def merge_result_rows(current, incoming):
+    """
+    Merges fields from an incoming result row into the current row, keeping the best available values.
+    """
     for field in ["Title", "Authors", "Venue", "URL", "PDF", "DOI"]:
         if not clean_text(current.get(field)) and clean_text(incoming.get(field)):
             current[field] = incoming.get(field)
@@ -221,6 +260,9 @@ def merge_result_rows(current, incoming):
 
 
 def compute_relevance_score(query, row, weights=None):
+    """
+    Computes a weighted relevance score for a result row combining text overlap, citation count, recency, and open-access bonus.
+    """
     tokens = [token for token in re.findall(r"[a-z0-9]+", query.lower()) if len(token) > 2]
     searchable_text = f"{clean_text(row.get('Title'))} {clean_text(row.get('Abstract'))}".lower()
 
@@ -260,6 +302,9 @@ def compute_relevance_score(query, row, weights=None):
 
 
 def deduplicate_results(results, fuzzy_title=False, fuzzy_threshold=0.90):
+    """
+    Removes duplicate result rows by DOI or title fingerprint, with optional fuzzy-title matching.
+    """
     merged = {}
     for index, row in enumerate(results):
         doi = normalize_doi(row.get("DOI"))
@@ -328,6 +373,9 @@ def deduplicate_results(results, fuzzy_title=False, fuzzy_threshold=0.90):
 
 
 def extract_top_keywords(series, top_n=12):
+    """
+    Extracts the most frequent non-stopword tokens from a pandas Series of text values.
+    """
     counter = Counter()
     for value in series.fillna("").astype(str):
         for token in re.findall(r"[a-zA-Z]{3,}", value.lower()):
@@ -338,6 +386,9 @@ def extract_top_keywords(series, top_n=12):
 
 
 def build_author_counts(df, top_n=10):
+    """
+    Counts how often each author appears in the dataset and returns the top-N as a DataFrame.
+    """
     counter = Counter()
     for raw_value in df["Authors"].fillna("").astype(str):
         parts = re.split(r",|;", raw_value)
@@ -350,6 +401,9 @@ def build_author_counts(df, top_n=10):
 
 
 def build_source_counts(df):
+    """
+    Counts how many results came from each source and returns the totals as a DataFrame.
+    """
     counter = Counter()
     for raw_value in df["Source"].fillna("").astype(str):
         parts = [clean_text(part) for part in raw_value.split("|")]
@@ -361,6 +415,9 @@ def build_source_counts(df):
 
 
 def build_research_brief(df, query):
+    """
+    Generates a single-line plain-text summary of key statistics for the filtered result set.
+    """
     if df.empty:
         return "No dataset summary is available yet."
 
@@ -392,6 +449,9 @@ def build_research_brief(df, query):
 
 
 def build_markdown_brief(df, query, source_stats=None, top_n=10):
+    """
+    Builds a formatted Markdown research brief including a summary, source diagnostics, and the top-ranked papers.
+    """
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [
         f"# Research Brief: {query}",
@@ -434,6 +494,9 @@ def build_markdown_brief(df, query, source_stats=None, top_n=10):
 
 
 def prepare_dataframe(results, query, score_weights=None):
+    """
+    Converts a list of raw result dicts into a cleaned, scored, and typed pandas DataFrame.
+    """
     if not results:
         return pd.DataFrame()
 

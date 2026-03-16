@@ -1,3 +1,6 @@
+"""
+Async source adapters for the Streamlit app; each function queries one external academic API and returns normalised rows.
+"""
 import asyncio
 import random
 import xml.etree.ElementTree as ET
@@ -9,6 +12,9 @@ from .app_utils import clean_text, normalize_int, normalize_year
 
 
 async def make_request(url, params=None, headers=None, retries=3):
+    """
+    Performs an async GET request with retry logic and exponential backoff on rate-limit responses.
+    """
     for attempt in range(retries):
         try:
             await asyncio.sleep(random.uniform(0.2, 0.5))
@@ -35,6 +41,9 @@ async def make_request(url, params=None, headers=None, retries=3):
 
 
 async def search_semantic_scholar(query, limit=10, api_key=None):
+    """
+    Queries the Semantic Scholar Graph API and returns normalised result rows.
+    """
     url = "https://api.semanticscholar.org/graph/v1/paper/search"
     headers = {"x-api-key": api_key} if api_key else {}
     params = {
@@ -73,6 +82,9 @@ async def search_semantic_scholar(query, limit=10, api_key=None):
 
 
 async def search_openalex(query, limit=10):
+    """
+    Queries the OpenAlex works endpoint and returns normalised result rows.
+    """
     url = "https://api.openalex.org/works"
     params = {"search": query, "per_page": limit}
     response = await make_request(url, params)
@@ -110,6 +122,9 @@ async def search_openalex(query, limit=10):
 
 
 async def search_arxiv(query, limit=10):
+    """
+    Queries the ArXiv Atom feed and returns normalised result rows.
+    """
     url = "https://export.arxiv.org/api/query"
     params = {"search_query": f"all:{query}", "start": 0, "max_results": limit}
     response = await make_request(url, params)
@@ -159,6 +174,9 @@ async def search_arxiv(query, limit=10):
 
 
 async def search_crossref(query, email, limit=10):
+    """
+    Queries the Crossref works endpoint and returns normalised result rows.
+    """
     url = "https://api.crossref.org/works"
     params = {"query": query, "rows": limit, "mailto": email}
     response = await make_request(url, params)
@@ -198,6 +216,9 @@ async def search_crossref(query, email, limit=10):
 
 
 async def search_google(query, api_key, cx_id, limit=10):
+    """
+    Queries Google Custom Search and returns normalised result rows, or an empty list if credentials are absent.
+    """
     if not api_key or not cx_id:
         return []
 
@@ -232,10 +253,16 @@ async def search_google(query, api_key, cx_id, limit=10):
 
 
 async def search_all_sources(query, limit, sources, api_keys, email, progress_callback=None):
+    """
+    Runs all requested source searches concurrently and aggregates results with per-source timing and error statistics.
+    """
     all_results = []
     source_stats = []
 
     async def run_source(source):
+        """
+        Dispatches a single named source search and returns the source name, results, error text, and elapsed time.
+        """
         started = perf_counter()
         if source == "Semantic Scholar":
             rows = await search_semantic_scholar(query, limit, api_keys.get("ss"))
