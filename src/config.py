@@ -1,3 +1,6 @@
+"""
+Configuration module: loads environment variables and exposes application-wide constants for API keys, email settings, and output paths.
+"""
 import os
 from datetime import datetime
 

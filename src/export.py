@@ -5,6 +5,9 @@ from .config import OUTPUT_CSV
 from .utils import clean_text
 
 def save_to_csv(data_row):
+    """
+    Appends a single result row to the output CSV file, creating the file with headers if it does not yet exist.
+    """
     file_exists = os.path.isfile(OUTPUT_CSV)
 
     # 1. More descriptive Column Headers
