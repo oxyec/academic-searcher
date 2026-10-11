@@ -86,8 +86,8 @@ Configuration reference:
 | `ACADEMIC_SEARCH_PERSIST_STATE` | Streamlit app | Optional (default `false`) | Enable disk persistence for saved setups/bookmarks (`true` enables `.academic_search_state.json`) |
 
 Notes:
-- In Streamlit, API keys can also be entered in the sidebar and do not need `.env`.
-- Crossref email is configurable directly in the UI.
+- Server credentials and the server contact email are used only in backend requests; they are never prefilled into browser widgets.
+- Visitors can optionally enter their own credentials and Crossref email in the sidebar. Blank fields use server settings; personal entries apply only to the current session.
 - Default sources are Semantic Scholar, OpenAlex, ArXiv, and Crossref. Google is opt-in.
 - Streamlit deployments should keep `ACADEMIC_SEARCH_PERSIST_STATE=false` to avoid shared cross-user state.
 

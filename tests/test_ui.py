@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from streamlit.testing.v1 import AppTest
 
-from src import source_adapters
+from src import config, source_adapters
 from test_results import paper
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
@@ -31,6 +31,46 @@ class UiTests(unittest.TestCase):
 
     def test_initial_screen_renders(self):
         self.assert_healthy(self.app())
+
+    def test_server_credentials_never_fill_widgets_or_session_state(self):
+        credentials = {key: f"server-only-{key}-secret" for key in ("ss", "openalex", "google", "cx")}
+        email = "server-only-contact@example.test"
+        with patch.object(source_adapters, "default_api_keys", return_value=credentials), patch.object(config, "UNPAYWALL_EMAIL", email):
+            at = self.app()
+            self.assert_healthy(at)
+            for key in ("personal_ss_key_input", "personal_openalex_key_input", "personal_google_key_input", "personal_google_cx_input", "personal_crossref_email_input"):
+                self.assertEqual(at.text_input(key=key).value, "")
+            browser_payload = repr(at._tree) + repr(at.session_state.filtered_state)
+            for secret in [*credentials.values(), email]:
+                self.assertNotIn(secret, browser_payload)
+
+    def test_legacy_credential_widget_state_is_removed(self):
+        at = AppTest.from_file(APP)
+        legacy_keys = ("ss_key_input", "openalex_key_input", "google_key_input", "google_cx_input", "crossref_email_input")
+        for key in legacy_keys:
+            at.session_state[key] = "old-server-secret"
+        at.run(timeout=10)
+        self.assert_healthy(at)
+        for key in legacy_keys:
+            self.assertNotIn(key, at.session_state.filtered_state)
+        self.assertNotIn("old-server-secret", repr(at._tree))
+
+    def test_search_uses_server_credentials_with_optional_personal_overrides(self):
+        credentials = {key: f"server-{key}" for key in ("ss", "openalex", "google", "cx")}
+        with patch.object(source_adapters, "default_api_keys", side_effect=lambda: credentials.copy()), patch.object(config, "UNPAYWALL_EMAIL", "server@example.test"), patch.object(source_adapters, "search_all_sources", AsyncMock(return_value=([], []))) as search:
+            at = self.app()
+            at.text_input(key="query_input").set_value("graph").run()
+            next(button for button in at.button if button.label == "Start Search").click().run()
+            self.assert_healthy(at)
+            self.assertEqual(search.await_args.args[3], credentials)
+            self.assertEqual(search.await_args.args[4], "server@example.test")
+
+            at.text_input(key="personal_google_key_input").set_value(" my-key ").run()
+            at.text_input(key="personal_crossref_email_input").set_value(" personal@example.test ").run()
+            next(button for button in at.button if button.label == "Start Search").click().run()
+            self.assert_healthy(at)
+            self.assertEqual(search.await_args.args[3], {**credentials, "google": "my-key"})
+            self.assertEqual(search.await_args.args[4], "personal@example.test")
 
     def test_single_and_zero_source_choices_do_not_crash(self):
         at = self.app()

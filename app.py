@@ -266,6 +266,10 @@ def inject_styles(ui_mode="Auto"):
 
 
 def render_sidebar_tools():
+    # Clear credential widgets created by older releases in existing sessions.
+    # Server credentials must never become widget values or session state.
+    for legacy_key in ("ss_key_input", "openalex_key_input", "google_key_input", "google_cx_input", "crossref_email_input"):
+        st.session_state.pop(legacy_key, None)
     with st.sidebar:
         st.header("Workspace")
         st.caption("Tools and credentials")
@@ -279,12 +283,14 @@ def render_sidebar_tools():
 
         with st.container(border=True):
             st.markdown("**API Access**")
-            defaults = default_api_keys()
-            ss_key = st.text_input("Semantic Scholar key", value=defaults.get("ss") or "", type="password", key="ss_key_input")
-            oa_key = st.text_input("OpenAlex key", value=defaults.get("openalex") or "", type="password", key="openalex_key_input")
-            g_key = st.text_input("Google API key", value=defaults.get("google") or "", type="password", key="google_key_input")
-            g_cx = st.text_input("Google CX ID", value=defaults.get("cx") or "", type="password", key="google_cx_input")
-            email = st.text_input("Crossref email", value=UNPAYWALL_EMAIL, key="crossref_email_input")
+            st.caption("Configured server access is used automatically.")
+            with st.expander("Use your own credentials (optional)"):
+                st.caption("Leave blank to use server access. Your entries apply to this session.")
+                ss_key = st.text_input("Semantic Scholar key", value="", type="password", key="personal_ss_key_input")
+                oa_key = st.text_input("OpenAlex key", value="", type="password", key="personal_openalex_key_input")
+                g_key = st.text_input("Google API key", value="", type="password", key="personal_google_key_input")
+                g_cx = st.text_input("Google CX ID", value="", type="password", key="personal_google_cx_input")
+                email = st.text_input("Your Crossref contact email", value="", key="personal_crossref_email_input")
 
         with st.container(border=True):
             st.markdown("**Reading List**")
@@ -645,13 +651,16 @@ def perform_search(search_input, auth_input):
         progress_bar.progress(value)
 
     with st.spinner(f"Searching for '{query}' across sources..."):
+        # Resolve defaults only on the server, after reading the visitor's inputs.
+        runtime_keys = default_api_keys()
+        runtime_keys.update({key: value.strip() for key, value in auth_input["keys"].items() if value.strip()})
         raw_results, source_stats = run_async(
             search_all_sources(
                 query,
                 search_input["limit"],
                 search_input["sources"],
-                auth_input["keys"],
-                auth_input["email"],
+                runtime_keys,
+                auth_input["email"].strip() or UNPAYWALL_EMAIL,
                 progress_callback=update_progress,
             )
         )
