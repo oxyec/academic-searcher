@@ -12,6 +12,7 @@ except ImportError:
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 CSE_ID = os.getenv("CSE_ID")
 S2_API_KEY = os.getenv("S2_API_KEY")
+OPENALEX_API_KEY = os.getenv("OPENALEX_API_KEY")
 
 # --- EMAIL SETTINGS ---
 DEFAULT_EMAIL = "academic-bot-user@example.com"

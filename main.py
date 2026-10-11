@@ -1,6 +1,6 @@
 import asyncio
 from src.config import OUTPUT_CSV
-from src.core import search_all_sources_async
+from src.core import search_with_diagnostics_async
 from src.export import save_to_csv
 
 async def run_cli(results_limit):
@@ -13,7 +13,18 @@ async def run_cli(results_limit):
             continue
 
         print(f"\nSearching for '{query}'...")
-        all_results = await search_all_sources_async(query, results_limit)
+        try:
+            all_results, diagnostics = await search_with_diagnostics_async(query, results_limit)
+        except ValueError as exc:
+            print(f"Invalid search: {exc}")
+            continue
+        for stat in diagnostics:
+            if stat["status"] != "OK":
+                print(f"   [{stat['status']}] {stat['source']}: {stat['error']}")
+        if not all_results:
+            message = "All sources failed; no search results are available." if all(stat["status"] == "Error" for stat in diagnostics) else "No matches were returned."
+            print(message)
+            continue
 
         print(f"\n   -> Processing {len(all_results)} total results...")
         for row in all_results:
@@ -34,8 +45,9 @@ def main():
                 results_limit = 5
             else:
                 results_limit = int(user_input)
-                if results_limit < 1:
-                    results_limit = 1
+                if not 1 <= results_limit <= 100:
+                    print("Choose between 1 and 100 articles per source.")
+                    continue
             break
         except ValueError:
             print("Please enter a valid number.")

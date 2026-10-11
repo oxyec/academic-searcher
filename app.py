@@ -15,15 +15,15 @@ from src.app_utils import (
     build_research_brief,
     build_source_counts,
     clean_text,
-    deduplicate_results,
     extract_top_keywords,
     load_persisted_state,
     persist_state,
-    prepare_dataframe,
+    prepare_results,
     state_persistence_enabled,
     to_bibtex_entry,
 )
-from src.search_sources import search_all_sources
+from src.source_adapters import DEFAULT_SOURCES, default_api_keys, search_all_sources
+from src.config import UNPAYWALL_EMAIL
 
 st.set_page_config(page_title="Academic Research Assistant", page_icon="A", layout="wide")
 
@@ -67,6 +67,7 @@ def init_session_state():
     st.session_state.setdefault("raw_results", [])
     st.session_state.setdefault("source_stats", [])
     st.session_state.setdefault("last_query", "")
+    st.session_state.setdefault("last_sources", [])
 
 
 def inject_styles(ui_mode="Auto"):
@@ -278,10 +279,12 @@ def render_sidebar_tools():
 
         with st.container(border=True):
             st.markdown("**API Access**")
-            ss_key = st.text_input("Semantic Scholar key", type="password", key="ss_key_input")
-            g_key = st.text_input("Google API key", type="password", key="google_key_input")
-            g_cx = st.text_input("Google CX ID", type="password", key="google_cx_input")
-            email = st.text_input("Crossref email", value="researcher@example.com", key="crossref_email_input")
+            defaults = default_api_keys()
+            ss_key = st.text_input("Semantic Scholar key", value=defaults.get("ss") or "", type="password", key="ss_key_input")
+            oa_key = st.text_input("OpenAlex key", value=defaults.get("openalex") or "", type="password", key="openalex_key_input")
+            g_key = st.text_input("Google API key", value=defaults.get("google") or "", type="password", key="google_key_input")
+            g_cx = st.text_input("Google CX ID", value=defaults.get("cx") or "", type="password", key="google_cx_input")
+            email = st.text_input("Crossref email", value=UNPAYWALL_EMAIL, key="crossref_email_input")
 
         with st.container(border=True):
             st.markdown("**Reading List**")
@@ -304,7 +307,7 @@ def render_sidebar_tools():
                 st.caption("No papers saved yet.")
 
     return {
-        "keys": {"ss": ss_key, "google": g_key, "cx": g_cx},
+        "keys": {"ss": ss_key, "openalex": oa_key, "google": g_key, "cx": g_cx},
         "email": email,
         "ui_mode": ui_mode,
     }
@@ -329,6 +332,7 @@ def render_search_header():
                 "Research topic",
                 key="query_input",
                 placeholder="example: retrieval augmented generation in healthcare",
+                max_chars=300,
             )
         with row1_col2:
             st.write("")
@@ -339,11 +343,14 @@ def render_search_header():
             sources = st.multiselect(
                 "Sources",
                 ["Semantic Scholar", "OpenAlex", "ArXiv", "Crossref", "Google Custom Search"],
-                default=["Semantic Scholar", "OpenAlex", "ArXiv"],
+                default=list(DEFAULT_SOURCES),
                 key="sources_input",
             )
         with row2_col2:
             limit = st.slider("Results per source", 5, 100, 20, step=5, key="limit_input")
+
+        if "Google Custom Search" in sources:
+            st.caption("Google Custom Search is for existing API customers; service ends January 1, 2027.")
 
     return {
         "query": query,
@@ -370,7 +377,7 @@ def _hydrate_logical_slider_state(selected_source_count):
         mapped = None
         if "year_range_pct_input" in st.session_state:
             mapped = _map_legacy_year_pct_to_range(st.session_state.get("year_range_pct_input"))
-        st.session_state["year_range_input"] = mapped or (max(2000, CURRENT_YEAR - 10), CURRENT_YEAR)
+        st.session_state["year_range_input"] = mapped or (1990, CURRENT_YEAR)
 
     if "fuzzy_threshold_pct_input" not in st.session_state:
         try:
@@ -407,7 +414,7 @@ def _hydrate_logical_slider_state(selected_source_count):
         if isinstance(year_value, list):
             year_value = tuple(year_value)
         if not isinstance(year_value, tuple) or len(year_value) != 2:
-            year_value = (max(2000, CURRENT_YEAR - 10), CURRENT_YEAR)
+            year_value = (1990, CURRENT_YEAR)
         start = max(1990, min(int(year_value[0]), CURRENT_YEAR))
         end = max(start, min(int(year_value[1]), CURRENT_YEAR))
         st.session_state["year_range_input"] = (start, end)
@@ -498,13 +505,15 @@ def render_controls(selected_source_count):
             )
             min_citations = st.number_input("Minimum citations", 0, 100000, 0, step=10, key="min_citations_input")
             oa_filter = st.checkbox("Open access only", value=False, key="oa_filter_input")
-            min_source_count = st.slider(
-                "Minimum source agreement",
-                min_value=1,
-                max_value=selected_source_count,
-                key="min_source_count_input",
-                help="Require each paper to appear in at least this many selected sources.",
-            )
+            if selected_source_count > 1:
+                min_source_count = st.slider(
+                    "Minimum indexed sources", min_value=1, max_value=selected_source_count,
+                    key="min_source_count_input",
+                    help="Count of sources that returned a paper in this search sample. This does not measure scientific reliability.",
+                )
+            else:
+                min_source_count = 1
+                st.caption("Minimum indexed sources: 1")
 
         with col2:
             dedupe_enabled = st.checkbox("Smart deduplication", value=True, key="dedupe_input")
@@ -532,6 +541,7 @@ def render_controls(selected_source_count):
             st.caption(f"Weight sum: {text_weight + citation_weight + recency_weight:.2f} (auto-normalized)")
 
         st.markdown("**Text Filters**")
+        st.caption("Filters apply to the retrieved sample. Increase results per source to widen coverage.")
         t1, t2, t3 = st.columns(3)
         with t1:
             title_filter = st.text_input("Title contains", key="title_filter_input")
@@ -558,6 +568,12 @@ def render_controls(selected_source_count):
     }
 
 
+def load_selected_setup(selected_idx):
+    config = normalize_setup_config(st.session_state["saved_searches"][selected_idx]["config"])
+    for key, value in config.items():
+        st.session_state[key] = value
+
+
 def render_setup_manager(query, sources, limit, controls):
     with st.container(border=True):
         st.subheader("Saved Setups")
@@ -580,7 +596,8 @@ def render_setup_manager(query, sources, limit, controls):
         with c2:
             save_setup = st.button("Save Current Setup", width="stretch")
         with c3:
-            load_setup = st.button("Load Selected Setup", width="stretch", disabled=selected_idx is None)
+            st.button("Load Selected Setup", width="stretch", disabled=selected_idx is None,
+                      on_click=load_selected_setup, args=(selected_idx,))
 
     if save_setup and clean_text(query):
         item = {
@@ -611,19 +628,15 @@ def render_setup_manager(query, sources, limit, controls):
         persist_state_from_session()
         st.toast("Setup saved")
 
-    if load_setup and selected_idx is not None:
-        config = normalize_setup_config(st.session_state["saved_searches"][selected_idx]["config"])
-        for key, value in config.items():
-            st.session_state[key] = value
-        st.rerun()
-
-
 def perform_search(search_input, auth_input):
     query = clean_text(search_input["query"])
     if not search_input["search_btn"]:
         return
     if not query:
         st.toast("Please enter a search term.")
+        return
+    if not search_input["sources"]:
+        st.toast("Select at least one source.")
         return
 
     progress_bar = st.progress(0)
@@ -645,6 +658,7 @@ def perform_search(search_input, auth_input):
         st.session_state["raw_results"] = raw_results
         st.session_state["source_stats"] = source_stats
         st.session_state["last_query"] = query
+        st.session_state["last_sources"] = list(search_input["sources"])
 
     progress_bar.empty()
 
@@ -653,13 +667,14 @@ def render_output(df, raw_results, rows, source_stats, active_query, max_rows):
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Raw Rows", str(len(raw_results)))
     m2.metric("After Dedupe", str(len(rows)))
-    m3.metric("Visible Rows", str(len(df)))
+    m3.metric("Filtered Rows", str(len(df)))
     m4.metric("Open Access %", f"{df['OA'].mean() * 100:.1f}%")
     m5.metric("Median Cites", str(int(df["Cites"].median())))
 
     st.info(build_research_brief(df, active_query))
     brief_markdown = build_markdown_brief(df, active_query, source_stats=source_stats, top_n=12)
-    st.download_button("Download Research Brief (Markdown)", brief_markdown, "research_brief.md", "text/markdown", width="stretch")
+    st.caption("This snapshot summarizes retrieved metadata and does not evaluate paper findings.")
+    st.download_button("Download Search Snapshot (Markdown)", brief_markdown, "search_snapshot.md", "text/markdown", width="stretch")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Results", "Analytics", "Reading List", "Diagnostics"])
     df_display = df.head(max_rows).copy()
@@ -708,6 +723,7 @@ def render_output(df, raw_results, rows, source_stats, active_query, max_rows):
                 st.caption(f"{selected_row['Year']} | {selected_row['Venue']} | {selected_row['Source']}")
                 st.write(f"Authors: {selected_row['Authors']}")
                 st.write(f"Citations: {selected_row['Cites']} | Score: {selected_row['Score']:.3f}")
+                st.caption(f"Query word match: {selected_row['TextMatch']:.0%} | Citation signal: {selected_row['CitationSignal']:.0%} | Recency signal: {selected_row['RecencySignal']:.0%} | Open-access bonus: {selected_row['OpenAccessBonus']:.2f}")
                 if selected_row["DOI"]:
                     st.write(f"DOI: {selected_row['DOI']}")
 
@@ -816,6 +832,12 @@ def render_output(df, raw_results, rows, source_stats, active_query, max_rows):
         st.dataframe(df[["Title", "Score", "Cites", "Year", "Source"]].head(8), hide_index=True, width="stretch")
 
 
+def render_source_diagnostics(source_stats):
+    if source_stats:
+        st.dataframe(pd.DataFrame(source_stats)[["source", "result_count", "duration_sec", "status", "error"]],
+                     hide_index=True, width="stretch")
+
+
 def main():
     init_session_state()
 
@@ -827,24 +849,26 @@ def main():
     perform_search(search_input, auth_input)
 
     raw_results = st.session_state["raw_results"]
+    source_stats = st.session_state["source_stats"]
     if not raw_results:
-        st.info("Run a search to see results.")
+        if not st.session_state["last_query"]:
+            st.info("Run a search to see results.")
+        elif source_stats and all(stat["status"] == "Error" for stat in source_stats):
+            st.error("All selected sources failed. See source diagnostics below and retry.")
+        elif any(stat["status"] != "OK" for stat in source_stats):
+            st.warning("No matches were returned by the available sources. Coverage is incomplete because some sources failed.")
+        else:
+            st.info("The selected sources returned no matches. Try a broader query.")
+        render_source_diagnostics(source_stats)
         return
 
     active_query = st.session_state["last_query"] or clean_text(search_input["query"])
-    source_stats = st.session_state["source_stats"]
-
-    rows = (
-        deduplicate_results(
-            raw_results,
-            fuzzy_title=controls["fuzzy_dedupe"],
-            fuzzy_threshold=controls["fuzzy_threshold"],
-        )
-        if controls["dedupe_enabled"]
-        else raw_results
-    )
-
-    df = prepare_dataframe(rows, active_query, score_weights=controls["score_weights"])
+    st.caption(f"Showing results for: {active_query} | Sources: {', '.join(st.session_state['last_sources'])}")
+    if any(stat["status"] != "OK" for stat in source_stats):
+        st.warning("Some sources failed or returned incomplete data. Available results are shown; see Diagnostics for details.")
+    rows, df = prepare_results(raw_results, active_query, dedupe=controls["dedupe_enabled"],
+                              fuzzy_title=controls["fuzzy_dedupe"], fuzzy_threshold=controls["fuzzy_threshold"],
+                              score_weights=controls["score_weights"])
     if df.empty:
         st.warning("No records were returned from data sources.")
         return
@@ -858,15 +882,16 @@ def main():
     if controls["oa_filter"]:
         df = df[df["OA"]]
     if controls["title_filter"]:
-        df = df[df["Title"].str.contains(controls["title_filter"], case=False, na=False)]
+        df = df[df["Title"].str.contains(controls["title_filter"], case=False, na=False, regex=False)]
     if controls["author_filter"]:
-        df = df[df["Authors"].str.contains(controls["author_filter"], case=False, na=False)]
+        df = df[df["Authors"].str.contains(controls["author_filter"], case=False, na=False, regex=False)]
     if controls["venue_filter"]:
-        df = df[df["Venue"].str.contains(controls["venue_filter"], case=False, na=False)]
+        df = df[df["Venue"].str.contains(controls["venue_filter"], case=False, na=False, regex=False)]
 
     df = apply_sort(df, controls["sort_mode"])
     if df.empty:
         st.warning("No papers found after filtering.")
+        render_source_diagnostics(source_stats)
         return
 
     render_output(df, raw_results, rows, source_stats, active_query, controls["max_rows"])

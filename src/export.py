@@ -19,7 +19,11 @@ def save_to_csv(data_row):
         'Open Access Status',
         'PDF Link',
         'URL',
-        'Date Accessed'   # New Column
+        'Date Accessed',
+        'Citations',
+        'Abstract',
+        'Relevance Score',
+        'Source Count',
     ]
 
     # Map the internal keys to the nice CSV headers
@@ -34,7 +38,11 @@ def save_to_csv(data_row):
         'Open Access Status': data_row.get('oa_status'),
         'PDF Link': data_row.get('pdf_link'),
         'URL': data_row.get('url'),
-        'Date Accessed': datetime.now().strftime("%Y-%m-%d %H:%M")
+        'Date Accessed': datetime.now().strftime("%Y-%m-%d %H:%M"),
+        'Citations': data_row.get('citations', 0),
+        'Abstract': clean_text(data_row.get('abstract')),
+        'Relevance Score': data_row.get('score', 0),
+        'Source Count': data_row.get('source_count', 1),
     }
 
     # 2. Open with 'utf-8-sig' for Excel support and QUOTE_ALL for safety
